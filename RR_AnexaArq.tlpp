@@ -1,0 +1,101 @@
+#INCLUDE 'protheus.ch'
+#DEFINE CRLF Chr(13) + Chr(10)
+
+
+/*/{Protheus.doc} AnexaDoc
+Função alternativa ao banco de conhecimento.
+Anexa um documento e sua descrição na tabela ACB e faz a ligaçao com a AC9 
+@type function
+@version 12.1.33
+@author Gabriel Victor Garcia Teixeira
+@since 4/14/2023
+/*/
+User Function AnexaDoc()
+
+    Local cArquivo := ""
+    Local cDesc := ""
+    Local lOk := .T.
+
+        
+    While(lOk)
+        
+        If parameterReport()
+        
+            cDesc := IIf(Empty(MV_PAR01), Space(50), MV_PAR01)
+            cArquivo := IIf(Empty(MV_PAR02), Space(50), MV_PAR02)
+
+            cDesc := Alltrim(cDesc)
+            cArquivo := Alltrim(cArquivo)
+
+            If FwAlertYesNo("Arquivo escolhido: "+ cArquivo + CRLF +  "Descricao: " + cDesc,  "Atencao ! Confirmar Arquivo..." )
+                
+                FWMsgRun(, {|| GravaTabela(cArquivo , cDesc) }, "Processando", "Processando dados")
+
+                lOk := FwAlertYesNo("Upload realizado com Sucesso !"+ CRLF + "Deseja anexar mais um arquivo ?")
+          
+            EndIf
+        Else
+            lOk := .F.
+        EndIf
+       
+    End Do
+Return 
+
+
+/*/{Protheus.doc} parameterReport
+Função que pega a descrição do arquivo e o caminho onde ele se encontra.
+@type function
+@version 12.1.33
+@author Gabriel Victor Garcia Teixeira
+@since 4/14/2023
+@return logical, retorna a paramBox.
+/*/
+Static Function parameterReport() As Logical
+    Local aPergs As Array 
+
+    aPergs := {}
+
+    AAdd(aPergs, {1,"Descricao",Space(50),,,,,0,.F.})
+    aAdd(aPergs,{6,"Buscar arquivo",Space(50),"","","",50,.F.,"Todos os arquivos (*.*) |*.*"})
+
+
+Return ParamBox(aPergs, "Anexar Documento",,,,.t.,,,,"ANEXAR", .t., .t.)
+
+
+
+/*/{Protheus.doc} GravaTabela
+Função que recebe o caminho do arquivo e sua descrição e faz as gravações em cada tabela.
+@type function
+@version 12.1.33
+@author Gabriel Victor Garcia Teixeira
+@since 4/14/2023
+@param cArquivo, character, Caminho do arquivo 
+@param cDesc, character, Descição do arquivo
+/*/
+Static Function GravaTabela(cArquivo,cDesc)
+
+    Local cDrive, cDir, cNome, cExt
+    Local cObj
+
+    CPYT2S(cArquivo, PlsMudSis( "/dirdoc/co99/shared/")) 
+    SPLITPATH( cArquivo, @cDrive, @cDir, @cNome, @cExt );
+        
+    cObj := ACB->(getSXENum( "ACB", "ACB_CODOBJ" ))
+    ACB->(confirmSX8())
+    
+    ACB->(RecLock( "ACB", .T. ))
+        ACB->ACB_FILIAL  := xFilial( "ACB" ) 
+        ACB->ACB_CODOBJ := cObj
+        ACB->ACB_OBJETO := Upper( cNome + cExt)
+        ACB->ACB_DESCRI := cDesc  
+    ACB->( MsUnlock() )
+    
+    AC9->(RecLock( "AC9", .T. ))
+        AC9->AC9_FILIAL := xFilial( "AC9" )
+        AC9->AC9_FILENT := xFilial("SZ0") 
+        AC9->AC9_ENTIDA := "SZ0"
+        AC9->AC9_CODENT := SZ0->Z0_COD     
+        AC9->AC9_CODOBJ := cObj
+    AC9->( MsUnlock() ) 
+
+return
