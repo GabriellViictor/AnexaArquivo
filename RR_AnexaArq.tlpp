@@ -98,4 +98,4 @@ Static Function GravaTabela(cArquivo,cDesc)
         AC9->AC9_CODOBJ := cObj
     AC9->( MsUnlock() ) 
 
-return
+return 
